@@ -1,0 +1,62 @@
+name: Smoke test (real FPL API)
+
+# Manual only: Actions tab -> "Smoke test (real FPL API)" -> Run workflow.
+# Takes one real snapshot and prints whether the fields we depend on exist.
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Take one snapshot from the real API
+        run: fpl-bot snapshot --db data/smoke.db
+      - name: Report field coverage
+        run: |
+          python - <<'EOF'
+          import sqlite3
+
+          db = sqlite3.connect("data/smoke.db")
+          total, tin, tout, cost, own, status, chance = db.execute(
+              "select count(*), count(transfers_in_event), count(transfers_out_event),"
+              " count(cost_change_event), count(selected_by_percent), count(status),"
+              " count(chance_of_playing_next_round) from player_history"
+          ).fetchone()
+          print(f"players stored:               {total}")
+          print(f"transfers_in_event present:   {tin}")
+          print(f"transfers_out_event present:  {tout}")
+          print(f"cost_change_event present:    {cost}")
+          print(f"selected_by_percent present:  {own}")
+          print(f"status present:               {status}")
+          print(f"chance_of_playing present:    {chance} (null is normal for fit players)")
+          print()
+          print("Players flagged injured (status 'i'):")
+          rows = db.execute(
+              "select p.web_name, h.news from player_history h"
+              " join players p using (player_id) where h.status = 'i' limit 8"
+          ).fetchall()
+          for name, news in rows:
+              print(f"  {name}: {news}")
+          print()
+          print("Top 5 by net transfers this gameweek:")
+          rows = db.execute(
+              "select p.web_name, h.now_cost / 10.0,"
+              " h.transfers_in_event - h.transfers_out_event as net"
+              " from player_history h join players p using (player_id)"
+              " order by net desc limit 5"
+          ).fetchall()
+          for name, price, net in rows:
+              print(f"  {name} (£{price}m): net {net:+d}")
+          assert tin == tout == cost == own == total, "some expected fields are missing"
+          print()
+          print("OK: all expected fields are present.")
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-db
+          path: data/smoke.db
