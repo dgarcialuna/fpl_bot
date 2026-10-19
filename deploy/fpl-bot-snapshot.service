@@ -1,0 +1,24 @@
+[Unit]
+Description=FPL Bot price and injury collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fplbot
+Group=fplbot
+Environment=FPL_BOT_DB=/var/lib/fpl-bot/fpl_bot.db
+ExecStart=/opt/fpl-bot/venv/bin/fpl-bot snapshot --loop --interval 1800
+Restart=always
+RestartSec=30
+
+# Hardening: the collector only needs to write its own data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/fpl-bot
+StateDirectory=fpl-bot
+
+[Install]
+WantedBy=multi-user.target

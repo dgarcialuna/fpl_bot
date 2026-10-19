@@ -1,0 +1,10 @@
+[Unit]
+Description=FPL Bot database backup
+
+[Service]
+Type=oneshot
+User=fplbot
+Group=fplbot
+ExecStart=/opt/fpl-bot/backup.sh
+ProtectSystem=strict
+ReadWritePaths=/var/lib/fpl-bot

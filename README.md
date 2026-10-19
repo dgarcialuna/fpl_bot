@@ -16,7 +16,8 @@ Early. What exists today is the data layer that everything else depends on:
 |---|---|
 | Polite client for the public FPL API (spacing, backoff, `Retry-After`, caching) | done |
 | SQLite history of prices, transfers and injury news (stores only changes) | done |
-| `fpl-bot snapshot` collector | done |
+| `fpl-bot snapshot` collector, verified against the real API | done |
+| Server install script (systemd service, daily backup) | done |
 | Price-rise / price-fall estimator, calibrated on the collected history | planned |
 | Long-term injury detection | planned |
 | Telegram bot, multi-user (team ID, mini-leagues) | planned |
@@ -35,6 +36,23 @@ fpl-bot snapshot --db data/fpl_bot.db --loop           # every 30 min (minimum 5
 ```
 
 The database path can also come from `FPL_BOT_DB`.
+
+## Running the collector on a server
+
+On a fresh Ubuntu 24.04 server, as root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dgarcialuna/fpl_bot/main/deploy/install.sh | bash
+```
+
+This creates an unprivileged `fplbot` user, installs the code in `/opt/fpl-bot`, runs the
+collector as a systemd service (a sample every 30 minutes, restarted automatically), schedules a
+daily database backup (last 14 days kept in `/var/lib/fpl-bot/backups`), enables automatic
+security updates and a firewall that only allows SSH. Running it again updates the code.
+Read [`deploy/install.sh`](deploy/install.sh) before piping any script into a shell.
+
+Check it with `systemctl status fpl-bot-snapshot` and
+`sqlite3 /var/lib/fpl-bot/fpl_bot.db 'select count(*) from snapshots;'`.
 
 ## Design notes
 
